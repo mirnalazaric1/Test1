@@ -1,0 +1,39 @@
+import pandas as pd
+import numpy as np
+pd.set_option('display.max_columns', None)
+import sqlite3
+
+trbc_data=pd.read_csv('210223_RDC_data.csv')
+response_data=pd.read_csv('210223_response_data.csv')
+trbc_id=pd.read_excel('trbc_ids.xlsx')
+
+#Adding maximum date&Id name change
+trbc_data.loc[trbc_data['EndDate'].isnull(),['EndDate']] = '9999-01-01'  
+trbc_data = trbc_data.rename(columns={'Id':'Id_2'})
+
+trbc_clear = trbc_data[['Id_2',
+ 'StartDate',
+ 'EndDate',
+ 'EconID',
+ 'BusID',
+ 'GrpID',
+ 'IndID',
+ 'RDC_ComName',
+ 'CntryHQISOCode',
+ 'CntryOfIncCode']].copy()
+ 
+ trbc_clear.drop_duplicates(inplace = True)
+ 
+ #Data merge
+conn = sqlite3.connect(':memory:')
+trbc_clear.to_sql('trbc_data', conn, index=False)
+response_data.to_sql('response_data', conn, index=False)
+
+qry = '''
+    select*
+    from response_data 
+    left join trbc_data on trbc_data.Id_2 = response_data.Id and 
+    response_data.PerEndDt between trbc_data.StartDate and trbc_data.EndDate
+    '''
+df = pd.read_sql_query(qry, conn)
+df
